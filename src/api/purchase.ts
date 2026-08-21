@@ -35,8 +35,19 @@ export const createPurchaseRouter = ({ database, websocket }: {
         res.json({ canDoPurchase: 'no because not supported by the server' })
         return
       }
+
+      if (req.body.type === 'googleplay' && !areGooglePlayPaymentsPossible) {
+        res.json({ canDoPurchase: 'no because not supported by the server' })
+        return
+      }
+
       const result: boolean = await database.transaction(async (transaction) => {
         const familyEntry = await requireFamilyEntry({ transaction, deviceAuthToken: req.body.deviceAuthToken })
+        return canDoNextPurchase({
+          fullVersionUntil: parseInt(familyEntry.fullVersionUntil, 10),
+          fullVersionDebts: parseInt(familyEntry.fullVersionDebts, 10),
+        })
+
         return canDoNextPurchase({
           fullVersionUntil: parseInt(familyEntry.fullVersionUntil, 10),
           fullVersionDebts: parseInt(familyEntry.fullVersionDebts, 10),

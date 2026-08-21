@@ -43,7 +43,7 @@ export const requireFamilyEntry = async ({ transaction, deviceAuthToken }: {
       familyId: deviceEntry.familyId,
     },
     attributes: ['fullVersionUntil', 'fullVersionDebts'],
-    transaction: transaction.legacy.transaction
+    transaction
   })
 
   if (!familyEntryUnsafe) {

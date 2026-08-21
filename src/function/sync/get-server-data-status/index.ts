@@ -56,7 +56,7 @@ export const generateServerDataStatus = async ({
   const isClient750OrNewer = clientLevel >= 8 // first release in the post gplay time
 
   const message: string | undefined =
-    await getStatusMessage({ transaction }) ||
+    await getStatusMessage({ database, transaction }) ||
     getCampaign({ familyId, isClient750OrNewer }) ||
     undefined
 
@@ -164,6 +164,7 @@ export const generateServerDataStatus = async ({
 
   if (doesClientSupportPing) {
     result.pings = await getPings({
+      database,
       transaction,
       familyEntry,
       deviceId

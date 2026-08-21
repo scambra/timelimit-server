@@ -94,6 +94,35 @@ export const addPurchase = async ({ familyId, type, service, transactionId, webs
     throw new Error()
   }
 
+      familyEntry.fullVersionUntil = newFullVersionUntil.toString(10)
+      familyEntry.fullVersionDebts = '0'
+      familyEntry.hasFullVersion = true
+    } else {
+      familyEntry.fullVersionDebts = (previousFullVersionDebts - typeDuration).toString(10)
+    }
+  } else if (type === 'unpaid14') {
+    const debtsAdd = 2 * week
+    const debtsMax = 3 * week
+
+    const newDebts = Math.min(debtsMax, previousFullVersionDebts + debtsAdd)
+
+    if (newDebts <= previousFullVersionDebts) {
+      // do not save anything
+
+      return
+    }
+
+    const durationToAdd = newDebts - previousFullVersionDebts
+
+    const newFullVersionUntil = Math.max(parseInt(familyEntry.fullVersionUntil, 10), Date.now()) + durationToAdd
+
+    familyEntry.fullVersionUntil = newFullVersionUntil.toString(10)
+    familyEntry.fullVersionDebts = newDebts.toString(10)
+    familyEntry.hasFullVersion = true
+  } else {
+    throw new Error()
+  }
+
   await familyEntry.save({ transaction: transaction.legacy.transaction })
 
   await transaction.legacy.database.purchase.create({

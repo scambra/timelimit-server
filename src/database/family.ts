@@ -101,6 +101,24 @@ export const attributesVersion4: SequelizeAttributes<FamilyAttributesVersion4> =
   }
 }
 
+export const attributesVersion3: SequelizeAttributes<FamilyAttributesVersion3> = {
+  u2fKeysVersion: {
+    ...versionColumn,
+    defaultValue: '0000'
+  }
+}
+
+export const attributesVersion4: SequelizeAttributes<FamilyAttributesVersion4> = {
+  fullVersionDebts: {
+    type: Sequelize.BIGINT,
+    allowNull: false,
+    defaultValue: 0,
+    validate: {
+      min: 0
+    }
+  }
+}
+
 export const attributes: SequelizeAttributes<FamilyAttributes> = {
   ...attributesVersion1,
   ...attributesVersion2,

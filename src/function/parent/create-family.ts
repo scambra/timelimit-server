@@ -90,7 +90,7 @@ export async function createFamily({
       nextServerKeyRequestSeq: '1',
       u2fKeysVersion: generateVersionId(),
       fullVersionDebts: '0'
-    }, { transaction: transaction.legacy.transaction })
+    }, { transaction })
 
     // create parent user
     await transaction.legacy.database.user.create({

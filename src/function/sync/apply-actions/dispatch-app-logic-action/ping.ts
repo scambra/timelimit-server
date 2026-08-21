@@ -33,25 +33,25 @@ export async function dispatchPingAction ({ action, cache, deviceId }: {
     else throw new Error()
 
     // delete any previous ping/pong
-    await cache.transaction.legacy.database.ping.destroy({
+    await cache.database.ping.destroy({
       where: {
         familyId: cache.familyId,
         receiverDeviceId: action.deviceId,
         senderDeviceId: deviceId,
 	type: type
       },
-      transaction: cache.transaction.legacy.transaction
+      transaction: cache.transaction
     })
 
     // insert
-    await cache.transaction.legacy.database.ping.create({
+    await cache.database.ping.create({
       familyId: cache.familyId,
       receiverDeviceId: action.deviceId,
       senderDeviceId: deviceId,
       type,
       token: action.token
     }, {
-      transaction: cache.transaction.legacy.transaction
+      transaction: cache.transaction
     })
 
     // notify
@@ -60,14 +60,14 @@ export async function dispatchPingAction ({ action, cache, deviceId }: {
 
   // handle deleting
   if (action.event === 'pong' || action.event === 'clear') {
-    await cache.transaction.legacy.database.ping.destroy({
+    await cache.database.ping.destroy({
       where: {
         familyId: cache.familyId,
         receiverDeviceId: deviceId,
         senderDeviceId: action.deviceId,
         token: action.token
       },
-      transaction: cache.transaction.legacy.transaction
+      transaction: cache.transaction
     })
   }
 }
