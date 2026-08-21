@@ -6,6 +6,8 @@ jobs:
   build:
     runs-on: ubuntu-latest
     permissions:
+      actions: write
+      contents: write
       packages: write
 
     steps:
@@ -56,3 +58,36 @@ jobs:
             ghcr.io/scambra/timelimit-server/timelimit:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Update Helm chart release metadata
+        id: chart
+        env:
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          current_app_version=$(sed -nE 's/^appVersion: "?([^"]+)"?/\1/p' charts/timelimit/Chart.yaml)
+          if [ "$current_app_version" = "$RELEASE_TAG" ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          current_chart_version=$(sed -nE 's/^version: ([0-9]+)\.([0-9]+)\.([0-9]+)/\1.\2.\3/p' charts/timelimit/Chart.yaml)
+          IFS=. read -r major minor patch <<< "$current_chart_version"
+          next_chart_version="$major.$minor.$((patch + 1))"
+
+          sed -i -E \
+            -e "s/^version: .*/version: $next_chart_version/" \
+            -e "s/^appVersion: .*/appVersion: \"$RELEASE_TAG\"/" \
+            charts/timelimit/Chart.yaml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add charts/timelimit/Chart.yaml
+          git commit -m "chore(chart): release TimeLimit $RELEASE_TAG"
+          git push origin master
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Publish the updated Helm chart
+        if: steps.chart.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run helm-chart-publish.yml --ref master
