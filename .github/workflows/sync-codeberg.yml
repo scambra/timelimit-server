@@ -2,12 +2,12 @@ name: Sync from Codeberg
 
 on:
   schedule:
-    - cron: '0 2 * * *' # daily at 02:00 UTC
+    - cron: '0 2 * * *'
   workflow_dispatch: {}
 
 permissions:
+  actions: write
   contents: write
-  pull-requests: write
 
 jobs:
   sync:
@@ -17,6 +17,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          ref: master
           fetch-depth: 0
 
       - name: Configure git
@@ -39,56 +40,60 @@ jobs:
             upstream_branch=master
           else
             ref=$(git ls-remote --symref upstream HEAD | sed -n 's@^ref: refs/heads/\([^ ]*\).*@\1@p')
-            if [ -n "$ref" ]; then upstream_branch=$ref; fi
+            test -n "$ref"
+            upstream_branch=$ref
           fi
-          echo "upstream_branch=$upstream_branch" >> $GITHUB_OUTPUT
+          echo "branch=$upstream_branch" >> "$GITHUB_OUTPUT"
 
-      - name: Prepare sync branch and merge upstream
-        id: merge
+      - name: Update the daily sync branch
+        id: sync
         run: |
-          set -e
-          BRANCH=sync/codeberg
-          echo "Using branch: $BRANCH"
-
-          git fetch origin +refs/heads/$BRANCH:refs/remotes/origin/$BRANCH || true
-
-          if git rev-parse --verify origin/$BRANCH >/dev/null 2>&1; then
-            git checkout -B $BRANCH origin/$BRANCH
+          branch=sync/codeberg
+          git fetch origin "+refs/heads/$branch:refs/remotes/origin/$branch" || true
+          if git rev-parse --verify "origin/$branch" >/dev/null; then
+            git checkout -B "$branch" "origin/$branch"
           else
-            git checkout -B $BRANCH
+            git checkout -B "$branch" master
           fi
 
-          BEFORE=$(git rev-parse --verify HEAD)
+          before=$(git rev-parse HEAD)
+          git merge --no-edit -s recursive -X theirs "upstream/${{ steps.upstream.outputs.branch }}"
+          after=$(git rev-parse HEAD)
+          echo "changed=$([[ $before != $after ]] && echo true || echo false)" >> "$GITHUB_OUTPUT"
 
-          # Merge upstream default branch, prefer upstream changes on conflicts
-          git merge --no-edit -s recursive -X theirs upstream/${{ steps.upstream.outputs.upstream_branch }} || true
+      - name: Push the daily sync branch
+        if: steps.sync.outputs.changed == 'true'
+        run: git push origin sync/codeberg
 
-          AFTER=$(git rev-parse --verify HEAD)
-          echo "before=$BEFORE" >> $GITHUB_OUTPUT
-          echo "after=$AFTER" >> $GITHUB_OUTPUT
-
-      - name: Push branch if changed
-        if: steps.merge.outputs.before != steps.merge.outputs.after
+      - name: Find latest upstream release tag
+        id: release
         run: |
-          BRANCH=sync/codeberg
-          git push origin HEAD:$BRANCH
+          tag=$(git for-each-ref --format='%(refname:strip=2)' refs/tags \
+            | grep -E '^[0-9]{4}-[0-9]{2}-[0-9]{2}$' \
+            | sort -r \
+            | head -n 1)
+          test -n "$tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
-      - name: Create or update Pull Request
-        if: steps.merge.outputs.before != steps.merge.outputs.after
-        uses: peter-evans/create-pull-request@5f6978faf089d4d20b00c7766989d076bb2fc7f1 # v8
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          commit-message: "chore(sync): update from Codeberg timelimit-server"
-          branch: sync/codeberg
-          title: 'chore(sync): sync with Codeberg timelimit-server'
-          body: |
-            This pull request updates the repository with upstream changes from:
+      - name: Check whether the release is already merged
+        id: check
+        run: |
+          git checkout master
+          if git merge-base --is-ancestor "${{ steps.release.outputs.tag }}" HEAD; then
+            echo "merged=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "merged=false" >> "$GITHUB_OUTPUT"
+          fi
 
-            https://codeberg.org/timelimit/timelimit-server
+      - name: Merge the tagged release into master
+        if: steps.check.outputs.merged == 'false'
+        run: |
+          git merge --no-edit -s recursive -X theirs "${{ steps.release.outputs.tag }}" \
+            -m "chore(sync): Codeberg release ${{ steps.release.outputs.tag }}"
+          git push origin master
 
-            This workflow runs daily and updates this PR automatically.
-          base: main
-
-      - name: No changes to sync
-        if: steps.merge.outputs.before == steps.merge.outputs.after
-        run: echo 'No upstream changes detected; nothing to push.'
+      - name: Build the merged release image
+        if: steps.check.outputs.merged == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run docker-image.yml --ref master
