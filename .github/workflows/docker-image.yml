@@ -34,6 +34,10 @@ jobs:
             | head -n 1)
           test -n "$tag"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "master_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Check out the selected Codeberg release
+        run: git checkout --detach "${{ steps.release.outputs.tag }}"
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -58,6 +62,9 @@ jobs:
             ghcr.io/scambra/timelimit-server/timelimit:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Return to master
+        run: git checkout -B master "${{ steps.release.outputs.master_sha }}"
 
       - name: Update Helm chart release metadata
         id: chart
