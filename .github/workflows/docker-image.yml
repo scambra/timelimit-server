@@ -34,6 +34,7 @@ jobs:
             | head -n 1)
           test -n "$tag"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "image_tag=${tag//-/.}" >> "$GITHUB_OUTPUT"
           echo "master_sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Check out the selected Codeberg release
@@ -58,7 +59,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/scambra/timelimit-server/timelimit:${{ steps.release.outputs.tag }}
+            ghcr.io/scambra/timelimit-server/timelimit:${{ steps.release.outputs.image_tag }}
             ghcr.io/scambra/timelimit-server/timelimit:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
@@ -69,10 +70,10 @@ jobs:
       - name: Update Helm chart release metadata
         id: chart
         env:
-          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          IMAGE_TAG: ${{ steps.release.outputs.image_tag }}
         run: |
           current_app_version=$(sed -nE 's/^appVersion: "?([^"]+)"?/\1/p' charts/timelimit/Chart.yaml)
-          if [ "$current_app_version" = "$RELEASE_TAG" ]; then
+          if [ "$current_app_version" = "$IMAGE_TAG" ]; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
@@ -83,13 +84,13 @@ jobs:
 
           sed -i -E \
             -e "s/^version: .*/version: $next_chart_version/" \
-            -e "s/^appVersion: .*/appVersion: \"$RELEASE_TAG\"/" \
+            -e "s/^appVersion: .*/appVersion: \"$IMAGE_TAG\"/" \
             charts/timelimit/Chart.yaml
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add charts/timelimit/Chart.yaml
-          git commit -m "chore(chart): release TimeLimit $RELEASE_TAG"
+          git commit -m "chore(chart): release TimeLimit $IMAGE_TAG"
           git push origin master
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
