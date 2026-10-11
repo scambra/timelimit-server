@@ -36,6 +36,23 @@ entries:
     - https://github.com/scambra/timelimit-server/releases/download/timelimit-4.5.0/timelimit-4.5.0.tgz
     version: 4.5.0
   - apiVersion: v2
+    appVersion: 1.17.1
+    created: "2026-10-11T14:29:59.197716534Z"
+    dependencies:
+    - condition: mariadb.enabled
+      name: mariadb
+      repository: oci://registry-1.docker.io/cloudpirates
+      version: 0.16.16
+    description: A Helm chart for timelimit server
+    digest: 16877b32bb70a39333108efba73a6455b1a88364e2a56aa05f0c11dcdf4acd4c
+    maintainers:
+    - name: Michael
+    name: timelimit
+    type: application
+    urls:
+    - https://github.com/scambra/timelimit-server/releases/download/timelimit-4.4.14/timelimit-4.4.14.tgz
+    version: 4.4.14
+  - apiVersion: v2
     appVersion: "2026-08-04"
     created: "2026-08-21T12:57:14.997627999Z"
     dependencies:
@@ -745,4 +762,4 @@ entries:
     urls:
     - https://github.com/MichaelSp/timelimit-server/releases/download/timelimit-0.2.3/timelimit-0.2.3.tgz
     version: 0.2.3
-generated: "2026-08-28T13:07:48.103506717Z"
+generated: "2026-10-11T14:29:59.198066919Z"
